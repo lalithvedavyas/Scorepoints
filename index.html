@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Add Players to Firebase</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f0f2f5;
+      padding: 40px;
+    }
+    .container {
+      background: #fff;
+      padding: 20px;
+      max-width: 400px;
+      margin: auto;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+    h2 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    input, button {
+      width: 100%;
+      padding: 12px;
+      margin: 8px 0;
+      font-size: 16px;
+    }
+    button {
+      background-color: #28a745;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #218838;
+    }
+    #status {
+      margin-top: 10px;
+      font-weight: bold;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Add Player</h2>
+    <input type="text" id="playerName" placeholder="Enter player name" />
+    <button onclick="addPlayer()">Add Player</button>
+    <p id="status"></p>
+  </div>
+
+  <script type="module">
+    // Firebase imports
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    // ✅ Your Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyAY8STnj26Si7HH4sFc_eHaiVTD6KhaHOk",
+      authDomain: "scorecard-points.firebaseapp.com",
+      projectId: "scorecard-points",
+      storageBucket: "scorecard-points.firebasestorage.app",
+      messagingSenderId: "1043203405229",
+      appId: "1:1043203405229:web:8fb2535a24fe1ccf925d24"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const playersRef = collection(db, "players");
+
+    // Add player function
+    window.addPlayer = async function () {
+      const input = document.getElementById("playerName");
+      const status = document.getElementById("status");
+      const name = input.value.trim();
+
+      if (!name) {
+        status.textContent = "❌ Please enter a player name.";
+        status.style.color = "red";
+        return;
+      }
+
+      try {
+        await addDoc(playersRef, { name });
+        status.textContent = `✅ Player "${name}" added successfully.`;
+        status.style.color = "green";
+        input.value = "";
+      } catch (error) {
+        console.error("Error adding player:", error);
+        status.textContent = "❌ Failed to add player. Check the console.";
+        status.style.color = "red";
+      }
+    };
+  </script>
+</body>
+</html>
