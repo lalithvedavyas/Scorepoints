@@ -1,62 +1,68 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Add Players to Firebase</title>
+  <meta charset="UTF-8" />
+  <title>IPL Fantasy Points</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f0f2f5;
-      padding: 40px;
-    }
+    body { font-family: Arial; background: #f4f4f4; padding: 20px; }
     .container {
-      background: #fff;
-      padding: 20px;
-      max-width: 400px;
-      margin: auto;
-      border-radius: 10px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      max-width: 900px; margin: auto; background: #fff; padding: 20px;
+      border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);
     }
-    h2 {
-      text-align: center;
-      margin-bottom: 20px;
+    h2 { margin-top: 40px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { border: 1px solid #ddd; padding: 10px; text-align: center; }
+    th { background-color: #f2f2f2; }
+    select, button, input {
+      font-size: 16px; padding: 8px; margin: 5px;
     }
-    input, button {
-      width: 100%;
-      padding: 12px;
-      margin: 8px 0;
-      font-size: 16px;
-    }
-    button {
-      background-color: #28a745;
-      color: white;
-      border: none;
-      cursor: pointer;
-    }
-    button:hover {
-      background-color: #218838;
-    }
-    #status {
-      margin-top: 10px;
-      font-weight: bold;
-      text-align: center;
-    }
+    #totalPoints { font-weight: bold; margin-top: 20px; }
+    .success { color: green; }
+    .error { color: red; }
   </style>
 </head>
 <body>
   <div class="container">
-    <h2>Add Player</h2>
-    <input type="text" id="playerName" placeholder="Enter player name" />
-    <button onclick="addPlayer()">Add Player</button>
-    <p id="status"></p>
+    <h1>IPL Fantasy Points Calculator</h1>
+
+    <!-- Player Selection -->
+    <label for="playerSelect">Select Player:</label>
+    <select id="playerSelect"><option>Loading...</option></select>
+    <button id="addPlayerBtn">Add to Table</button>
+
+    <table id="playerTable">
+      <thead>
+        <tr>
+          <th>Player</th><th>Runs</th><th>4s</th><th>6s</th>
+          <th>Wickets</th><th>Catches</th><th>Run Outs</th><th>Stumpings</th><th>Remove</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <button id="calculatePointsBtn">Calculate Points</button>
+    <div id="totalPoints">Total Points: 0</div>
+
+    <!-- Add Player Section -->
+    <h2>Add New Player</h2>
+    <input type="text" id="newPlayerName" placeholder="Enter new player name" />
+    <button id="saveNewPlayerBtn">Save Player</button>
+    <p id="saveStatus"></p>
   </div>
 
+  <!-- Firebase SDK -->
   <script type="module">
-    // Firebase imports
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import {
+      getFirestore,
+      collection,
+      getDocs,
+      addDoc,
+      query,
+      where
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-    // ✅ Your Firebase configuration
+    // ✅ Firebase configuration
     const firebaseConfig = {
       apiKey: "AIzaSyAY8STnj26Si7HH4sFc_eHaiVTD6KhaHOk",
       authDomain: "scorecard-points.firebaseapp.com",
@@ -66,34 +72,90 @@
       appId: "1:1043203405229:web:8fb2535a24fe1ccf925d24"
     };
 
-    // Initialize Firebase
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
-    const playersRef = collection(db, "players");
+    const playerCollection = collection(db, "players");
 
-    // Add player function
-    window.addPlayer = async function () {
-      const input = document.getElementById("playerName");
-      const status = document.getElementById("status");
-      const name = input.value.trim();
+    // Load players into dropdown
+    async function loadPlayers() {
+      const snapshot = await getDocs(playerCollection);
+      const playerList = snapshot.docs.map(doc => doc.data().name);
+      const select = document.getElementById("playerSelect");
+      select.innerHTML = '<option value="">--Choose a Player--</option>';
+      playerList.forEach(player => {
+        const opt = document.createElement("option");
+        opt.value = opt.textContent = player;
+        select.appendChild(opt);
+      });
+    }
 
+    // Add selected player to table
+    function addPlayerRow(name) {
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td>${name}</td>
+        <td contenteditable="true">0</td>
+        <td contenteditable="true">0</td>
+        <td contenteditable="true">0</td>
+        <td contenteditable="true">0</td>
+        <td contenteditable="true">0</td>
+        <td contenteditable="true">0</td>
+        <td contenteditable="true">0</td>
+        <td><button onclick="this.closest('tr').remove()">Remove</button></td>
+      `;
+      document.querySelector("#playerTable tbody").appendChild(row);
+    }
+
+    document.getElementById("addPlayerBtn").addEventListener("click", () => {
+      const name = document.getElementById("playerSelect").value;
+      if (!name) return alert("Please select a player.");
+      addPlayerRow(name);
+    });
+
+    // Calculate total points
+    document.getElementById("calculatePointsBtn").addEventListener("click", () => {
+      const rows = document.querySelectorAll("#playerTable tbody tr");
+      let total = 0;
+      rows.forEach(row => {
+        const values = Array.from(row.querySelectorAll("td")).slice(1, 8).map(td => parseInt(td.textContent) || 0);
+        total += values.reduce((a, b) => a + b, 0);
+      });
+      document.getElementById("totalPoints").textContent = "Total Points: " + total;
+    });
+
+    // Save new player
+    document.getElementById("saveNewPlayerBtn").addEventListener("click", async () => {
+      const name = document.getElementById("newPlayerName").value.trim();
+      const status = document.getElementById("saveStatus");
       if (!name) {
-        status.textContent = "❌ Please enter a player name.";
-        status.style.color = "red";
+        status.textContent = "Please enter a player name.";
+        status.className = "error";
+        return;
+      }
+
+      // Prevent duplicate
+      const q = query(playerCollection, where("name", "==", name));
+      const snapshot = await getDocs(q);
+      if (!snapshot.empty) {
+        status.textContent = `"${name}" already exists.`;
+        status.className = "error";
         return;
       }
 
       try {
-        await addDoc(playersRef, { name });
-        status.textContent = `✅ Player "${name}" added successfully.`;
-        status.style.color = "green";
-        input.value = "";
-      } catch (error) {
-        console.error("Error adding player:", error);
-        status.textContent = "❌ Failed to add player. Check the console.";
-        status.style.color = "red";
+        await addDoc(playerCollection, { name });
+        status.textContent = `"${name}" added successfully.`;
+        status.className = "success";
+        document.getElementById("newPlayerName").value = "";
+        await loadPlayers(); // Refresh dropdown
+      } catch (err) {
+        console.error("Error adding player:", err);
+        status.textContent = "Error adding player.";
+        status.className = "error";
       }
-    };
+    });
+
+    window.onload = loadPlayers;
   </script>
 </body>
 </html>
